@@ -169,6 +169,8 @@ Declared and captured in `results/environment.json`:
 - **CPU sampling**: 6 samples at 10s intervals (60s total idle observation).
 - **Measurement source**: `kubectl top` for hardened/KubeVirt (cgroup metrics), privileged host probe for Kata (VmRSS of shim + QEMU + virtiofsd).
 - **Cold start CPU**: Patched to 1000m during cold start to avoid CFS throttling (steady-state manifests use 100m).
+- **Percentiles**: Nearest-rank (ceil). P95 = value at index `ceil(n × 0.95)`. No interpolation.
+- **Memory units**: All memory values are MiB (mebibytes, binary). `kubectl top` reports MiB; host probe converts from KiB.
 
 ## Repository Structure
 
