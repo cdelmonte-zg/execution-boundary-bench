@@ -166,19 +166,18 @@ echo "=== Summary ==="
 
 STATS=$(awk -F',' '
   NR > 1 && $3 != "TIMEOUT" {
-    values[NR] = $3
+    values[++n] = $3
     sum += $3
-    n++
-    timeouts = 0
   }
   NR > 1 && $3 == "TIMEOUT" { timeouts++ }
   END {
     if (n == 0) { printf "0 0 0 0 0"; exit }
     asort(values)
-    p50 = values[int(n * 0.50)]
-    p95 = values[int(n * 0.95)]
+    # nearest-rank percentile: ceil(n * p)
+    p50_idx = int(n * 0.50 + 0.999999); if (p50_idx < 1) p50_idx = 1; if (p50_idx > n) p50_idx = n
+    p95_idx = int(n * 0.95 + 0.999999); if (p95_idx < 1) p95_idx = 1; if (p95_idx > n) p95_idx = n
     mean = sum / n
-    printf "%d %d %d %d %d", n, p50, p95, mean, timeouts+0
+    printf "%d %d %d %d %d", n, values[p50_idx], values[p95_idx], mean, timeouts+0
   }
 ' "$OUTFILE")
 

@@ -210,8 +210,8 @@ printf "%-22s %12s %12s %12s\n" "----------------------" "------------" "-------
 for runtime in hardened kata kubevirt; do
   CSV="${RESULTS_DIR}/cold-start-${runtime}.csv"
   if [[ -f "$CSV" ]]; then
-    P50=$(awk -F',' 'NR>1 && $3!="TIMEOUT" {v[NR]=$3; n++} END {asort(v); print v[int(n*0.50)]}' "$CSV")
-    P95=$(awk -F',' 'NR>1 && $3!="TIMEOUT" {v[NR]=$3; n++} END {asort(v); print v[int(n*0.95)]}' "$CSV")
+    P50=$(awk -F',' 'NR>1 && $3!="TIMEOUT" {v[++n]=$3} END {asort(v); idx=int(n*0.50+0.999999); if(idx<1)idx=1; if(idx>n)idx=n; print v[idx]}' "$CSV")
+    P95=$(awk -F',' 'NR>1 && $3!="TIMEOUT" {v[++n]=$3} END {asort(v); idx=int(n*0.95+0.999999); if(idx<1)idx=1; if(idx>n)idx=n; print v[idx]}' "$CSV")
     eval "${runtime}_P50=${P50}"
     eval "${runtime}_P95=${P95}"
   fi
@@ -224,8 +224,8 @@ for runtime in hardened kata kubevirt; do
   MEM_FILE="${RESULTS_DIR}/memory-${runtime}.json"
   CPU_FILE="${RESULTS_DIR}/cpu-${runtime}.json"
   if [[ -f "$MEM_FILE" ]]; then
-    eval "${runtime}_RSS=$(python3 -c "import json; print(json.load(open('${MEM_FILE}'))['application_rss_mb'])" 2>/dev/null || echo 'N/A')"
-    eval "${runtime}_HOST=$(python3 -c "import json; print(json.load(open('${MEM_FILE}'))['host_memory_mb'])" 2>/dev/null || echo 'N/A')"
+    eval "${runtime}_RSS=$(python3 -c "import json; print(json.load(open('${MEM_FILE}'))['application_rss_mib'])" 2>/dev/null || echo 'N/A')"
+    eval "${runtime}_HOST=$(python3 -c "import json; print(json.load(open('${MEM_FILE}'))['host_memory_mib'])" 2>/dev/null || echo 'N/A')"
     eval "${runtime}_AMP=$(python3 -c "import json; print(json.load(open('${MEM_FILE}'))['amplification_factor'])" 2>/dev/null || echo 'N/A')"
   fi
   if [[ -f "$CPU_FILE" ]]; then
@@ -234,8 +234,8 @@ for runtime in hardened kata kubevirt; do
   fi
 done
 
-printf "%-22s %12s %12s %12s\n" "App RSS (MB)" "${hardened_RSS:-N/A}" "${kata_RSS:-N/A}" "${kubevirt_RSS:-N/A}"
-printf "%-22s %12s %12s %12s\n" "Host Memory (MB)" "${hardened_HOST:-N/A}" "${kata_HOST:-N/A}" "${kubevirt_HOST:-N/A}"
+printf "%-22s %12s %12s %12s\n" "App RSS (MiB)" "${hardened_RSS:-N/A}" "${kata_RSS:-N/A}" "${kubevirt_RSS:-N/A}"
+printf "%-22s %12s %12s %12s\n" "Host Memory (MiB)" "${hardened_HOST:-N/A}" "${kata_HOST:-N/A}" "${kubevirt_HOST:-N/A}"
 printf "%-22s %12s %12s %12s\n" "Amplification" "${hardened_AMP:-N/A}x" "${kata_AMP:-N/A}x" "${kubevirt_AMP:-N/A}x"
 printf "%-22s %12s %12s %12s\n" "Idle CPU (m)" "${hardened_CPU_M:-N/A}" "${kata_CPU_M:-N/A}" "${kubevirt_CPU_M:-N/A}"
 printf "%-22s %12s %12s %12s\n" "Idle CPU (%)" "${hardened_CPU_P:-N/A}" "${kata_CPU_P:-N/A}" "${kubevirt_CPU_P:-N/A}"

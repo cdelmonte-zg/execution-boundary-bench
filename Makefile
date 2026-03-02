@@ -1,4 +1,4 @@
-.PHONY: help build push benchmark cold-start memory cpu concurrent clean setup-configmap
+.PHONY: help build push benchmark cold-start memory cpu concurrent clean setup-configmap lint
 
 REGISTRY ?= ghcr.io/YOURUSERNAME
 IMAGE    := $(REGISTRY)/bench-workload:latest
@@ -52,6 +52,16 @@ cpu: ## Measure CPU overhead (pods must be running)
 concurrent: ## Find max concurrent sandboxes per node
 	bash scripts/max-concurrent.sh hardened
 	bash scripts/max-concurrent.sh kata
+
+# --- Validation ---
+
+lint: ## Run shellcheck on all scripts
+	shellcheck scripts/*.sh cluster/*.sh
+
+validate-manifests: ## Dry-run validate all manifests
+	kubectl apply --dry-run=client -f manifests/hardened-container.yaml
+	kubectl apply --dry-run=client -f manifests/kata-microvm.yaml
+	kubectl apply --dry-run=client -f manifests/kubevirt-vm.yaml
 
 # --- Cleanup ---
 

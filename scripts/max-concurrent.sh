@@ -41,6 +41,7 @@ esac
 MAX_ATTEMPTS=200
 READY_TIMEOUT=120
 COUNT=0
+STOP_REASON="max_attempts_reached"
 
 # Pin all pods to a single worker node (first non-control-plane node)
 # This measures per-node density, not cluster-wide capacity.
@@ -103,6 +104,7 @@ for i in $(seq 1 "$MAX_ATTEMPTS"); do
     REASON=$(kubectl get pod "$POD_NAME" -o jsonpath='{.status.containerStatuses[0].state.waiting.reason}' 2>/dev/null || echo "")
 
     echo "    [${i}] FAILED — phase=${POD_STATUS} reason=${REASON}"
+    STOP_REASON="pod_failure:${POD_STATUS}:${REASON}"
     kubectl delete pod "$POD_NAME" --grace-period=0 --force 2>/dev/null || true
     break
   fi
@@ -110,6 +112,7 @@ for i in $(seq 1 "$MAX_ATTEMPTS"); do
   # Check node pressure after successful scheduling
   if check_node_pressure; then
     echo "    [${i}] Node pressure detected — stopping"
+    STOP_REASON="node_pressure"
     break
   fi
 
@@ -119,12 +122,18 @@ done
 
 echo ""
 echo "  Max concurrent stable: ${COUNT}"
+echo "  Stop reason: ${STOP_REASON}"
+
+# Capture node allocatable memory
+NODE_ALLOC_MIB=$(kubectl get node "$TARGET_NODE" -o jsonpath='{.status.allocatable.memory}' 2>/dev/null | sed 's/Ki//' | awk '{printf "%.0f", $1 / 1024}')
 
 cat <<EOF > "$OUTFILE"
 {
   "runtime": "${RUNTIME}",
   "max_concurrent_stable": ${COUNT},
+  "stop_reason": "${STOP_REASON}",
   "target_node": "${TARGET_NODE}",
+  "node_allocatable_memory_mib": ${NODE_ALLOC_MIB:-0},
   "cpu_limit_per_pod": "100m",
   "memory_limit_per_pod": "128Mi",
 $(platform_json),

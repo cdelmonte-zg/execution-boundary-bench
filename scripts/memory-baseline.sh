@@ -9,12 +9,12 @@
 # Output: results/memory-<runtime>.json
 #
 # Definitions:
-#   application_rss_mb  = VmRSS reported by the workload process (inside sandbox)
-#   host_memory_mb      = total host-side memory consumed by the sandbox
+#   application_rss_mib  = VmRSS reported by the workload process (inside sandbox)
+#   host_memory_mib      = total host-side memory consumed by the sandbox
 #     - hardened/kubevirt: cgroup working_set via kubectl top (= host memory)
 #     - kata: sum of VmRSS of kata-shim + QEMU + virtiofsd on the host node
 #       (kubelet stats only see guest-side metrics for Kata, missing host overhead)
-#   amplification_factor = host_memory_mb / application_rss_mb
+#   amplification_factor = host_memory_mib / application_rss_mib
 
 set -euo pipefail
 
@@ -139,15 +139,15 @@ for s in $(seq 1 "$MEM_SAMPLES"); do
   host=$(get_host_memory "$RUNTIME")
   RSS_VALUES+=("$rss")
   HOST_VALUES+=("$host")
-  printf "    Sample %d/%d: RSS=%s MB, Host=%s MB\n" "$s" "$MEM_SAMPLES" "$rss" "$host"
+  printf "    Sample %d/%d: RSS=%s MiB, Host=%s MiB\n" "$s" "$MEM_SAMPLES" "$rss" "$host"
 done
 
 # Use median (middle value of 3 sorted samples)
 APP_RSS=$(printf '%s\n' "${RSS_VALUES[@]}" | sort -n | sed -n '2p')
 HOST_MEM=$(printf '%s\n' "${HOST_VALUES[@]}" | sort -n | sed -n '2p')
 
-echo "  Median application RSS: ${APP_RSS} MB"
-echo "  Median host memory: ${HOST_MEM} MB"
+echo "  Median application RSS: ${APP_RSS} MiB"
+echo "  Median host memory: ${HOST_MEM} MiB"
 
 # --- 4. Compute amplification factor ---
 AMPLIFICATION=$(echo "$HOST_MEM $APP_RSS" | awk '{
@@ -166,8 +166,8 @@ esac
 cat <<EOF > "$OUTFILE"
 {
   "runtime": "${RUNTIME}",
-  "application_rss_mb": ${APP_RSS},
-  "host_memory_mb": ${HOST_MEM},
+  "application_rss_mib": ${APP_RSS},
+  "host_memory_mib": ${HOST_MEM},
   "amplification_factor": ${AMPLIFICATION},
   "samples": ${MEM_SAMPLES},
   "aggregation": "median",
@@ -184,8 +184,8 @@ $(platform_json),
 EOF
 
 echo ""
-echo "  Application RSS:  ${APP_RSS} MB"
-echo "  Host memory:      ${HOST_MEM} MB"
+echo "  Application RSS:  ${APP_RSS} MiB"
+echo "  Host memory:      ${HOST_MEM} MiB"
 echo "  Amplification:    ${AMPLIFICATION}x"
 echo "  Method:           ${METHOD}"
 echo "  Written to: ${OUTFILE}"
