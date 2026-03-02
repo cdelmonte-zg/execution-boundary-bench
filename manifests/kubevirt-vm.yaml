@@ -1,0 +1,106 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: bench-kubevirt
+  labels:
+    app: bench
+    runtime: kubevirt
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        app: bench
+        runtime: kubevirt
+    spec:
+      domain:
+        cpu:
+          cores: 1
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+            cpu: 100m
+        devices:
+          disks:
+            - name: containerdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+      readinessProbe:
+        httpGet:
+          port: 8080
+          path: /ready
+        initialDelaySeconds: 30
+        periodSeconds: 5
+        timeoutSeconds: 10
+        failureThreshold: 20
+      volumes:
+        - name: containerdisk
+          containerDisk:
+            image: quay.io/containerdisks/ubuntu:22.04
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              package_update: false
+              password: bench123
+              chpasswd: { expire: false }
+              ssh_pwauth: true
+              write_files:
+                - path: /opt/bench/server.py
+                  permissions: "0755"
+                  content: |
+                    """Minimal HTTP server for isolation benchmark."""
+                    import http.server
+                    import json
+                    import os
+                    import time
+
+                    _BALLAST = bytearray(40 * 1024 * 1024)
+                    STARTUP_TIME = time.time()
+
+                    class ReadinessHandler(http.server.BaseHTTPRequestHandler):
+                        def do_GET(self):
+                            if self.path == "/ready":
+                                self.send_response(200)
+                                self.send_header("Content-Type", "application/json")
+                                self.end_headers()
+                                self.wfile.write(json.dumps({
+                                    "status": "ready",
+                                    "pid": os.getpid(),
+                                    "uptime_seconds": round(time.time() - STARTUP_TIME, 3),
+                                    "rss_mb": self._get_rss_mb()
+                                }).encode())
+                            elif self.path == "/healthz":
+                                self.send_response(200)
+                                self.end_headers()
+                                self.wfile.write(b"ok")
+                            else:
+                                self.send_response(404)
+                                self.end_headers()
+
+                        def log_message(self, format, *args):
+                            pass
+
+                        @staticmethod
+                        def _get_rss_mb():
+                            try:
+                                with open("/proc/self/status") as f:
+                                    for line in f:
+                                        if line.startswith("VmRSS:"):
+                                            return round(int(line.split()[1]) / 1024, 1)
+                            except Exception:
+                                return -1
+                            return -1
+
+                    if __name__ == "__main__":
+                        server = http.server.HTTPServer(("0.0.0.0", 8080), ReadinessHandler)
+                        print(f"Benchmark workload ready on :8080 (PID {os.getpid()})")
+                        server.serve_forever()
+              runcmd:
+                - ["python3", "/opt/bench/server.py"]

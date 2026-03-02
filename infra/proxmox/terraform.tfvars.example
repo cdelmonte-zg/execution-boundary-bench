@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars and fill in your values
+
+proxmox_endpoint    = "https://192.168.1.100:8006"
+proxmox_api_token   = "bench@pam!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+proxmox_node        = "pve"
+proxmox_datastore   = "local-lvm"
+
+vm_cores     = 4
+vm_memory_mb = 16384
+vm_disk_gb   = 40
+node_count   = 2
+
+network_bridge = "vmbr0"
+ip_base        = "192.168.1.200"
+gateway        = "192.168.1.1"
+nameserver     = "1.1.1.1"
+
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+k8s_version         = "1.29"
