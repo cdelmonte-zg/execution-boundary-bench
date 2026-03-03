@@ -62,14 +62,29 @@ trap 'echo ""; echo "  Interrupted — cleaning up..."; cleanup "$POD_NAME" "$RE
 wait_for_ready() {
   local name="$1"
   local resource_type="$2"
-  local timeout=120
 
   if [[ "$resource_type" == "pod" ]]; then
-    kubectl wait --for=condition=Ready "pod/${name}" --timeout="${timeout}s" 2>/dev/null
+    kubectl wait --for=condition=Ready "pod/${name}" --timeout=120s 2>/dev/null
   else
-    # KubeVirt: VMI Ready condition is set when the readinessProbe (HTTP /ready:8080)
-    # succeeds. So kubectl wait here measures the full cold start including app readiness.
-    kubectl wait --for=condition=Ready "vmi/${name}" --timeout=300s 2>/dev/null
+    # KubeVirt: kubectl wait on VMI custom resources is unreliable — the watch API
+    # can miss condition updates, causing false timeouts. We poll instead.
+    local vmi_timeout=300
+    local elapsed=0
+    # First wait for VMI to appear
+    while ! kubectl get vmi "$name" &>/dev/null; do
+      sleep 2
+      elapsed=$((elapsed + 2))
+      if [[ "$elapsed" -ge "$vmi_timeout" ]]; then return 1; fi
+    done
+    # Then poll for Ready condition
+    while [[ "$elapsed" -lt "$vmi_timeout" ]]; do
+      local ready
+      ready=$(kubectl get vmi "$name" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+      if [[ "$ready" == "True" ]]; then return 0; fi
+      sleep 5
+      elapsed=$((elapsed + 5))
+    done
+    return 1
   fi
 }
 
@@ -90,6 +105,17 @@ cleanup() {
     done
   else
     kubectl delete vm "$name" --ignore-not-found --grace-period=0 2>/dev/null || true
+    # Wait for VM object to be fully removed (finalizers processed)
+    while kubectl get vm "$name" &>/dev/null; do
+      sleep 1
+      wait_retries=$((wait_retries + 1))
+      if [[ "$wait_retries" -ge 120 ]]; then
+        echo "  WARNING: Cleanup timed out for vm ${name}" >&2
+        break
+      fi
+    done
+    # Wait for VMI to be removed
+    wait_retries=0
     while kubectl get vmi "$name" &>/dev/null; do
       sleep 1
       wait_retries=$((wait_retries + 1))
@@ -98,9 +124,21 @@ cleanup() {
         break
       fi
     done
+    # Wait for virt-launcher pod to fully terminate.
+    # Without this, a new VM apply can race with the old launcher pod,
+    # causing KubeVirt to fail to create the new VMI.
+    wait_retries=0
+    while kubectl get pods -l "vm.kubevirt.io/name=${name}" --no-headers 2>/dev/null | grep -q .; do
+      sleep 1
+      wait_retries=$((wait_retries + 1))
+      if [[ "$wait_retries" -ge 60 ]]; then
+        echo "  WARNING: Cleanup timed out for launcher pod of ${name}" >&2
+        break
+      fi
+    done
   fi
   # Brief pause to ensure node resources are released
-  sleep 2
+  sleep 3
 }
 
 echo "=== Cold Start Benchmark: ${RUNTIME} (${RUNS} runs) ==="

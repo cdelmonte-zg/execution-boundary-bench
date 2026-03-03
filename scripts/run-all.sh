@@ -149,12 +149,17 @@ for runtime in hardened kata kubevirt; do
     hardened) kubectl wait --for=condition=Ready pod/bench-hardened --timeout=120s ;;
     kata)     kubectl wait --for=condition=Ready pod/bench-kata --timeout=120s ;;
     kubevirt)
-      echo "  Waiting for VMI to appear..."
-      for _ in $(seq 1 30); do
-        kubectl get vmi/bench-kubevirt &>/dev/null && break
-        sleep 2
+      echo "  Waiting for VMI Ready (polling)..."
+      vmi_elapsed=0
+      while ! kubectl get vmi bench-kubevirt &>/dev/null 2>&1; do
+        sleep 2; vmi_elapsed=$((vmi_elapsed + 2))
+        if [[ "$vmi_elapsed" -ge 300 ]]; then echo "  ERROR: VMI never appeared" >&2; break; fi
       done
-      kubectl wait --for=condition=Ready vmi/bench-kubevirt --timeout=300s ;;
+      while [[ "$vmi_elapsed" -lt 300 ]]; do
+        vmi_ready=$(kubectl get vmi bench-kubevirt -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+        if [[ "$vmi_ready" == "True" ]]; then break; fi
+        sleep 5; vmi_elapsed=$((vmi_elapsed + 5))
+      done ;;
   esac
 
   "${SCRIPT_DIR}/memory-baseline.sh" "$runtime"
@@ -166,12 +171,33 @@ for runtime in hardened kata kubevirt; do
     kata)     kubectl delete pod bench-kata --grace-period=0 --force 2>/dev/null ;;
     kubevirt)
       kubectl delete vm bench-kubevirt 2>/dev/null || true
+      # Wait for VM object to be fully removed (finalizers processed)
+      vmi_wait=0
+      while kubectl get vm bench-kubevirt &>/dev/null; do
+        sleep 1
+        vmi_wait=$((vmi_wait + 1))
+        if [[ "$vmi_wait" -ge 120 ]]; then
+          echo "  WARNING: VM cleanup timed out after 120s" >&2
+          break
+        fi
+      done
+      # Wait for VMI to be removed
       vmi_wait=0
       while kubectl get vmi bench-kubevirt &>/dev/null; do
         sleep 2
         vmi_wait=$((vmi_wait + 1))
         if [[ "$vmi_wait" -ge 60 ]]; then
           echo "  WARNING: VMI cleanup timed out after 120s" >&2
+          break
+        fi
+      done
+      # Wait for virt-launcher pod to fully terminate
+      vmi_wait=0
+      while kubectl get pods -l "vm.kubevirt.io/name=bench-kubevirt" --no-headers 2>/dev/null | grep -q .; do
+        sleep 1
+        vmi_wait=$((vmi_wait + 1))
+        if [[ "$vmi_wait" -ge 60 ]]; then
+          echo "  WARNING: Launcher pod cleanup timed out" >&2
           break
         fi
       done
