@@ -1,0 +1,18 @@
+{
+  "runtime": "kubevirt",
+  "idle_cpu_millicores": 2.00,
+  "idle_cpu_percent": 2.00,
+  "cpu_limit_millicores": 100,
+  "samples": 6,
+  "interval_seconds": 10,
+  "measurement_method": "kubectl_top",
+  "notes": "kubectl top on virt-launcher pod (cgroup CPU). Includes QEMU + libvirt.",
+  "platform": {
+    "kubernetes": "v1.29.15",
+    "nodes": "3 x 4 vCPU, 16 GB RAM",
+    "kernel": "5.15.0-171-generic",
+    "os": "Ubuntu 22.04.5 LTS",
+    "container_runtime": "containerd://1.7.28"
+  },
+  "timestamp": "2026-03-03T13:19:58Z"
+}

@@ -1,0 +1,20 @@
+{
+  "runtime": "kata",
+  "runs": 50,
+  "timeouts": 0,
+  "p50_ms": 2887,
+  "p95_ms": 3892,
+  "mean_ms": 3217,
+  "cold_start_cpu_limit": "1000m",
+  "image_pull_policy": "IfNotPresent",
+  "conditions": "images pre-pulled via warmup run, cluster idle, no concurrent workloads",
+  "platform": {
+    "kubernetes": "v1.29.15",
+    "nodes": "3 x 4 vCPU, 16 GB RAM",
+    "kernel": "5.15.0-171-generic",
+    "os": "Ubuntu 22.04.5 LTS",
+    "container_runtime": "containerd://1.7.28"
+  },
+  "csv_file": "cold-start-kata.csv",
+  "timestamp": "2026-03-03T10:31:08Z"
+}

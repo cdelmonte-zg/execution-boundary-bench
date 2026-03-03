@@ -1,0 +1,22 @@
+{
+  "kubernetes_version": "v1.29.15",
+  "kubelet_version": "v1.29.15",
+  "container_runtime": "containerd://1.7.28",
+  "node_count": 3,
+  "node_cpu_cores": "4",
+  "node_ram_gb": 16,
+  "kernel_version": "5.15.0-171-generic",
+  "os_image": "Ubuntu 22.04.5 LTS",
+  "cpu_model": "AMD Ryzen 9 7950X 16-Core Processor",
+  "nested_virtualization": "available",
+  "infrastructure": "Proxmox 8.x VMs with cpu: host passthrough",
+  "test_conditions": {
+    "cold_start_runs": 50,
+    "image_pull_policy": "IfNotPresent (warmup run pre-pulls before timed runs)",
+    "cluster_load": "idle (no other workloads during test)",
+    "memory_stabilization_wait_seconds": 30,
+    "cpu_sample_duration_seconds": 60,
+    "measurement_method": "kubectl top (cgroup) for hardened/kubevirt; host process VmRSS probe for kata"
+  },
+  "timestamp": "2026-03-03T10:16:22Z"
+}

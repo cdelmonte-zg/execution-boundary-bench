@@ -1,0 +1,17 @@
+{
+  "runtime": "hardened",
+  "max_concurrent_stable": 37,
+  "stop_reason": "pod_failure:Failed:",
+  "target_node": "bench-worker-1",
+  "node_allocatable_memory_mib": 15889,
+  "cpu_limit_per_pod": "100m",
+  "memory_limit_per_pod": "128Mi",
+  "platform": {
+    "kubernetes": "v1.29.15",
+    "nodes": "3 x 4 vCPU, 16 GB RAM",
+    "kernel": "5.15.0-171-generic",
+    "os": "Ubuntu 22.04.5 LTS",
+    "container_runtime": "containerd://1.7.28"
+  },
+  "timestamp": "2026-03-03T13:23:28Z"
+}

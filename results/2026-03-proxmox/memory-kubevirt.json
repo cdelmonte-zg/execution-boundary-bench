@@ -1,0 +1,23 @@
+{
+  "runtime": "kubevirt",
+  "application_rss_mib": 57.1,
+  "host_memory_mib": 580,
+  "amplification_factor": 10.16,
+  "samples": 3,
+  "aggregation": "median",
+  "measurement_method": "kubectl_top_virt_launcher_working_set",
+  "notes": {
+    "application_rss": "VmRSS from /proc/self/status inside sandbox",
+    "host_memory_hardened": "cgroup working_set via kubectl top (= host memory for containers)",
+    "host_memory_kata": "sum of VmRSS of kata-shim + qemu-system + virtiofsd on host (privileged probe pod)",
+    "host_memory_kubevirt": "cgroup working_set of virt-launcher pod via kubectl top"
+  },
+  "platform": {
+    "kubernetes": "v1.29.15",
+    "nodes": "3 x 4 vCPU, 16 GB RAM",
+    "kernel": "5.15.0-171-generic",
+    "os": "Ubuntu 22.04.5 LTS",
+    "container_runtime": "containerd://1.7.28"
+  },
+  "timestamp": "2026-03-03T13:18:27Z"
+}
